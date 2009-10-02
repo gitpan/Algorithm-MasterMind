@@ -1,4 +1,4 @@
-package Algorithm::MasterMind::Sequential;
+package Algorithm::MasterMind::Sequential_Alt;
 
 use warnings;
 use strict;
@@ -6,7 +6,7 @@ use Carp;
 
 use lib qw(../../lib);
 
-our $VERSION =   sprintf "%d.%03d", q$Revision: 1.5 $ =~ /(\d+)\.(\d+)/g; 
+our $VERSION =   sprintf "%d.%03d", q$Revision: 1.2 $ =~ /(\d+)\.(\d+)/g; 
 
 use base 'Algorithm::MasterMind';
 
@@ -18,9 +18,10 @@ sub initialize {
   }
   my @alphabet = @{$self->{'_alphabet'}};
   $self->{'_range'} = $alphabet[0]."-".$alphabet[$#alphabet];
-  $self->{'_current_string'} = $alphabet[0] x $self->{'_length'};
+  $self->{'_current_min'} = $alphabet[0] x $self->{'_length'};
+  $self->{'_current_max'} = $alphabet[$#alphabet] x $self->{'_length'};
   $self->{'_last_string'} = $alphabet[$#alphabet]x $self->{'_length'};
-
+  $self->{'_direction'} = 1; # Forward, 0 for backwards
 }
 
 sub issue_next {
@@ -28,23 +29,61 @@ sub issue_next {
   my $rules =  $self->number_of_rules();
   my ($match, $string);
   do {
-    $string = $self->{'_current_string'};
+    if ( $self->{'_direction'} ) {
+      $string = $self->{'_current_min'};
+    } else {
+      $string = $self->{'_current_max'};
+    }
     $match = $self->matches($string);
-    $self->next_string;
-  } while ( ( $self->{'_current_string'} ne $self->{'_last_string'} )
+    if ( $self->{'_direction'} ) {
+      $self->next_string;
+    } else {
+      $self->prev_string;
+    }
+  } while ( ( $self->{'_current_min'} ne $self->{'_current_max'} )
 	    && $match->{'matches'} < $rules );
+  $self->{'_direction'} = !$self->{'_direction'};
   return  $self->{'_last'} = $string;
 }
 
 sub next_string {
   my $self = shift;
-  $self->{'_current_string'}++;
+  $self->{'_current_min'}++;
   my $range = $self->{'_range'};
-  if ( $self->{'_current_string'} =~ /[^$range]/ )  {
-    $self->{'_current_string'} =~ s/[^$range]/Z/g;
-    $self->{'_current_string'}++; #Using magic increment
+  if ( $self->{'_current_min'} =~ /[^$range]/ )  {
+    $self->{'_current_min'} =~ s/[^$range]/Z/g;
+    $self->{'_current_min'}++; #Using magic increment
   }
   
+}
+
+sub prev_string {
+  my $self = shift;
+  my @alphabet = @{$self->{'_alphabet'}};
+  my @array = split(//, $self->{'_current_max'});
+  $array[$#array] = $self->prev_letter( $array[$#array] );
+  for ( my $i=$#array; $i >= 1; $i-- ) {
+    if ( $array[$i] eq 'Z' ) {
+      $array[$i] = $alphabet[$#alphabet];
+      $array[$i-1] = $self->prev_letter($array[$i-1]);
+    }
+  }
+
+  $self->{'_current_max'} = join("",@array);
+  
+}
+
+sub prev_letter {
+  my $self = shift;
+  my @alphabet = @{$self->{'_alphabet'}};
+  my $letter = shift;
+  my $output;
+  if ( $letter ne $alphabet[0] ) {
+    $output = chr( ord( $letter ) -1 );
+  } else {
+    $output = 'Z'; # Marker for "out of bounds"
+  }
+  return $output;
 }
 
 "some blacks, 0 white"; # Magic true value required at end of module
@@ -53,23 +92,25 @@ __END__
 
 =head1 NAME
 
-Algorithm::MasterMind::Sequential - Tests each combination in turn.
+Algorithm::MasterMind::Sequential_Alt - Tests each combination in
+    turn, alternating with the beginning and end of the sequence.
 
 
 =head1 SYNOPSIS
 
-    use Algorithm::MasterMind::Sequential;
+    use Algorithm::MasterMind::Sequential_Alt;
 
     my $secret_code = 'ADCB';
     my @alphabet = qw( A B C D E F );
-    my $solver = new Algorithm::MasterMind::Sequential { alphabet => \@alphabet,
+    my $solver = new Algorithm::MasterMind::Sequential_Alt { alphabet => \@alphabet,
 						       length => length( $secret_code ) };
     
 
 =head1 DESCRIPTION
 
 Test combinations in turn, starting by A x length. Should find the
-solution, but complexity increases with size. Not very efficient.
+solution, but complexity increases with size. Not very efficient, but
+    a bit better than L<Algorithm::MasterMind::Sequential>
 
 =head1 INTERFACE 
 
@@ -117,6 +158,17 @@ of them
 
 Computes the next string taking into account the limited alphabet, and
     return the computed string
+
+=head2 prev_string( $string )
+
+Computes the previous string taking into account the limited alphabet, and
+    returns it.
+
+=head2 prev_letter ( $character )
+
+Returns the previous letter considering the limited alphabet. Needed
+    because magic auto-decrement does not work.
+
 
 =head1 AUTHOR
 
