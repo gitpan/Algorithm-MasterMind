@@ -4,11 +4,13 @@ use warnings;
 use strict;
 use Carp;
 
-use version; our $VERSION = qv('0.0.3');
+use version; our $VERSION = qv('0.1.0');
+
+use Algorithm::Combinatorics qw(variations_with_repetition);
 
 our @ISA = qw(Exporter);
 
-our @EXPORT_OK = qw( check_combination );
+our @EXPORT_OK = qw( check_combination partitions );
 
 use lib qw( ../../lib ../lib ../../../lib );
 
@@ -40,6 +42,18 @@ sub random_combination {
 sub issue_first { #Default implementation
   my $self = shift;
   return $self->{'_last'} = $self->random_combination;
+}
+
+sub issue_first_Knuth {
+  my $self = shift;
+  my $string;
+  my @alphabet = @{ $self->{'_alphabet'}};
+  my $half = @alphabet/2;
+  for ( my $i = 0; $i < $self->{'_length'}; $i ++ ) {
+    $string .= $alphabet[ $i % $half ]; # Recommendation Knuth
+  }
+  $self->{'_first'} = 1; # Flag to know when the second is due
+  return $self->{'_last_string'} = $string;
 }
 
 sub issue_next {
@@ -83,7 +97,7 @@ sub matches {
   my @rules = @{$self->{'_rules'}};
   my $result = { matches => 0,
 		 result => [] };
-
+#  print "Checking $string, ", $self->{'_evaluated'}, "\n";
   for my $r ( @rules ) {    
     my $rule_result = check_rule( $r, $string );
     $result->{'matches'}++ if ( $rule_result->{'match'} );
@@ -97,8 +111,8 @@ sub check_rule {
   my $rule = shift;
   my $string = shift;
   my $result = check_combination( $rule->{'combination'}, $string );
-  if ( $rule->{'blacks'} eq $result->{'blacks'} 
-       && $rule->{'whites'} eq $result->{'whites'} ) {
+  if ( ( $rule->{'blacks'} == $result->{'blacks'} )
+       && ( $rule->{'whites'} == $result->{'whites'} ) ) {
     $result->{'match'} = 1;
   } else {
     $result->{'match'} = 0;
@@ -109,18 +123,23 @@ sub check_rule {
 sub check_combination {
   my $combination = shift;
   my $string = shift;
+
+  my @combination_arr = split(//, $combination );
+  my @string_arr = split(//, $string);
   my $blacks = 0;
   for ( my $i = 0; $i < length($combination); $i ++ ) {
-    if ( substr( $combination, $i, 1 ) eq substr( $string, $i, 1 ) ) {
-      substr( $combination, $i, 1 ) = substr( $string, $i, 1 ) = 0;
+    if ( $combination_arr[ $i ] eq $string_arr[ $i ] ) {
+      $combination_arr[ $i ] = $string_arr[ $i ] = 0;
       $blacks++;
     }
   }
-  my %hash_combination = hashify( $combination );
-  my %hash_string = hashify( $string );
+  my %hash_combination;
+  map( $hash_combination{$_}++, @combination_arr);
+  my %hash_string;
+  map( $hash_string{$_}++, @string_arr);
   my $whites = 0;
   for my $k ( keys %hash_combination ) {
-    next if $k eq '0';
+    next if $k eq '0'; # Mark for "already computed"
     next if ! defined $hash_string{$k};
     $whites += ($hash_combination{$k} > $hash_string{$k})
       ?$hash_string{$k}
@@ -149,6 +168,29 @@ sub not_in_combination {
   return keys %alphabet_hash;
 }
 
+sub partitions {
+  my @combinations = @_;
+
+  my %partitions;
+
+  for my $c ( @combinations ) {
+    for my $cc ( @combinations ) {
+      next if $c eq $cc;
+      my $result = check_combination ( $c, $cc );
+      $partitions{$c}{$result->{'blacks'}."b-".$result->{'whites'}."w"}++;
+    }
+    
+  }
+  return \%partitions;
+}
+
+sub all_combinations {
+  my $self = shift; 
+  my @combinations_array = variations_with_repetition( $self->{'_alphabet'}, 
+						       $self->{'_length'});
+  my @combinations = map( join( "", @$_), @combinations_array );
+  
+}
 
 "4 blacks, 0 white"; # Magic true value required at end of module
 
@@ -213,6 +255,11 @@ combination and how it scored against the secret code
 Issues the first combination, which might be generated in a particular
 way 
 
+=head2 issue_first_Knuth
+
+First combination looking like AABC for the normal
+mastermind. Proposed by Knuth in one of his original papers. 
+
 =head2 issue_next()
 
 Issues the next combination
@@ -259,6 +306,20 @@ combination. Might be useful for certain strategies.
 Combines randomly the alphabet, issuing, you guessed it, a random
 combination. 
 
+=head2 partitions
+
+From a set of combinations, returns the "partitions", that is, the
+number of combinations that would return every set of black and white
+response. Inputs an array, returns a hash keyed to the combination,
+each key containing a value corresponding to the number of elements in
+each partition.
+
+=head2 all_combinations
+
+Returns all possible combinations of the current alphabet and length
+in an array. Be careful with that, it could very easily fill up your
+memory, depending on length and alphabet size.
+
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -293,6 +354,10 @@ You can try and play this game at
 http://geneura.ugr.es/~jmerelo/GenMM/mm-eda.cgi, restricted to 4 pegs
 and 6 colors. The program C<mm-eda.cgi> should also be available in
 the C<apps> directory of this distribution.
+
+The development of this projects is hosted at sourceforge,
+https://sourceforge.net/projects/opeal/develop, check it out for the
+    latest bleeding edge release. 
 
 =head1 AUTHOR
 

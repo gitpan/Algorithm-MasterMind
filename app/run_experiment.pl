@@ -8,7 +8,7 @@ use lib qw(../lib ../../Algorithm-Evolutionary/lib);
 use YAML qw(LoadFile);
 use IO::YAML;
 use DateTime;
-use Data::Dumper qw(Dumper);
+
 use Algorithm::MasterMind qw( check_combination );
 
 my $config_file = shift || die "Usage: $0 <configfile.yaml>\n";

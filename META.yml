@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Algorithm-MasterMind
-version:             0.0.3
+version:             0.1.0
 abstract:            Framework for algorithms that solve the MasterMind game
 license:             ~
 author:              
@@ -8,6 +8,7 @@ author:
 generated_by:        ExtUtils::MakeMaker version 6.42
 distribution_type:   module
 requires:     
+    Algorithm::Combinatorics:      0
     Algorithm::Evolutionary:       0.71
     Test::More:                    0
     version:                       0

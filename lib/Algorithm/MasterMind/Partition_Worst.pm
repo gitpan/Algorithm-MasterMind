@@ -1,4 +1,4 @@
-package Algorithm::MasterMind::Sequential;
+package Algorithm::MasterMind::Partition_Worst;
 
 use warnings;
 use strict;
@@ -6,37 +6,78 @@ use Carp;
 
 use lib qw(../../lib);
 
-our $VERSION =   sprintf "%d.%03d", q$Revision: 1.6 $ =~ /(\d+)\.(\d+)/g; 
+our $VERSION =   sprintf "%d.%03d", q$Revision: 1.1 $ =~ /(\d+)\.(\d+)/g; 
 
 use base 'Algorithm::MasterMind';
 
-use Algorithm::Combinatorics qw(variations_with_repetition);
+use Algorithm::MasterMind qw( partitions );
 
 sub initialize {
   my $self = shift;
-  my $options = shift || croak "Need options here";
+  my $options = shift;
   for my $o ( keys %$options ) {
-    $self->{"_$o"} = $options->{$o}
+    $self->{"_$o"} = $options->{$o};
   }
-  my @alphabet = @{$self->{'_alphabet'}};
-  $self->{'_engine'} = variations_with_repetition(\@alphabet, $options->{'length'});
-  $self->{'_range'} = $alphabet[0]."-".$alphabet[$#alphabet];
-  $self->{'_current_string'} = $alphabet[0] x $self->{'_length'};
-  $self->{'_last_string'} = $alphabet[$#alphabet]x $self->{'_length'};
+  $self->{'_partitions'} = {};
+}
+
+sub issue_first {
+  my $self = shift;
+  my @combinations = $self->all_combinations();
+  $self->{'_consistent'} = \@combinations;
+  return $self->{'_last'} = $self->issue_first_Knuth();
 
 }
 
 sub issue_next {
   my $self = shift;
   my $rules =  $self->number_of_rules();
-  my ($match, $string, $combination);
 
-  while ( $combination = $self->{'_engine'}->next ) {
-    $string = join("", @$combination);
-    $match = $self->matches($string);
-    last if $match->{'matches'} == $rules;
+  # Check consistency
+  for ( my $i = 0; $i <= $#{$self->{'_consistent'}}; $i++ ) {
+     my $match = $self->matches($self->{'_consistent'}->[$i]);
+     $self->{'_evaluated'}++;
+     if ( $match->{'matches'} < $rules ) {
+       delete $self->{'_consistent'}->[$i];
+     }
   }
-  return  $self->{'_last'} = $string;
+
+  #Eliminate null
+  @{$self->{'_consistent'}} = grep( $_, @{$self->{'_consistent'}} );
+
+  if ( @{$self->{'_consistent'}}  > 1 ) {
+    # Compute partitions
+    my $partitions  = partitions( @{$self->{'_consistent'}} );
+    
+    # Obtain best
+    my %min_c;
+    my $min_max = keys %$partitions ;
+    for my $c ( keys %$partitions ) {
+      my $this_max = 0;
+      for my $p ( keys %{$partitions->{$c}} ) {
+	if ( $partitions->{$c}{$p} > $this_max ) {
+	  $this_max = $partitions->{$c}{$p};
+	}
+      }
+      $min_c{ $c } = $this_max;
+      if ( $this_max < $min_max ) {
+	$min_max = $this_max;
+      }
+    }
+    
+    # Find all partitions with that max
+    my @minimal_c = grep( $min_c{$_} == $min_max, keys %min_c );
+    
+    # Break ties
+    my $string = $minimal_c[ rand( @minimal_c )];
+    # Obtain next
+    if ( $string eq '' ) {
+      warn "Something is wrong\n";
+    }
+    return  $self->{'_last'} = $string;
+  } else {
+    return  $self->{'_last'} = $self->{'_consistent'}->[0];
+  }
 }
 
 "some blacks, 0 white"; # Magic true value required at end of module
@@ -45,29 +86,28 @@ __END__
 
 =head1 NAME
 
-Algorithm::MasterMind::Sequential - Tests each combination in turn.
+Algorithm::MasterMind::Partition_Worst - Plays random consistent combinations
 
 
 =head1 SYNOPSIS
 
-    use Algorithm::MasterMind::Sequential;
-
-    my $secret_code = 'ADCB';
+    use Algorithm::MasterMind::Partition_Worst;
+    my $secret_code = 'EAFC';
     my @alphabet = qw( A B C D E F );
-    my $solver = new Algorithm::MasterMind::Sequential { alphabet => \@alphabet,
-						       length => length( $secret_code ) };
-    
+    my $solver = new Algorithm::MasterMind::Partition_Worst { alphabet => \@alphabet,
+						   length => length( $secret_code ) };
 
+  
 =head1 DESCRIPTION
 
-Test combinations in turn, starting by A x length. Should find the
-solution, but complexity increases with size. Not very efficient.
+Solves the algorithm by issuing each time a combination that minimizes
+the size of the worst partition. 
 
 =head1 INTERFACE 
 
 =head2 initialize()
 
-Called from base class, mainly
+Called from C<new>
 
 =head2 new ( $options )
 
@@ -75,8 +115,8 @@ This function, and all the rest, are directly inherited from base
 
 =head2 issue_first ()
 
-Issues the first combination, which might be generated in a particular
-way 
+Issues it in the Knuth way, AABC. This should probably be computed
+from scratch, but it's already published, so what the hell.
 
 =head2 issue_next()
 
@@ -89,6 +129,10 @@ Obtain the result to the last combination played
 =head2 guesses()
 
 Total number of guesses
+
+=head2 evaluated()
+
+Total number of combinations checked to issue result
 
 =head2 number_of_rules ()
 
@@ -104,6 +148,7 @@ reference to array
 Returns a hash with the number of matches, and whether it matches
 every rule with the number of blacks and whites it obtains with each
 of them
+
 
 =head1 AUTHOR
 

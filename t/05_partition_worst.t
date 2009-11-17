@@ -6,15 +6,15 @@ use lib qw( lib ../lib ../../lib  ); #Just in case we are testing it in-place
 use Algorithm::MasterMind qw(check_combination);
 
 BEGIN {
-	use_ok( 'Algorithm::MasterMind::Sequential' );
+	use_ok( 'Algorithm::MasterMind::Partition_Worst' );
 }
 
-my $secret_code = 'FAFA';
+my $secret_code = 'ADCB';
 my @alphabet = qw( A B C D E F );
-my $solver = new Algorithm::MasterMind::Sequential { alphabet => \@alphabet,
-						       length => length( $secret_code ) };
+my $solver = new Algorithm::MasterMind::Partition_Worst { alphabet => \@alphabet,
+							  length => length( $secret_code ) };
 
-isa_ok( $solver, 'Algorithm::MasterMind::Sequential', 'Instance OK' );
+isa_ok( $solver, 'Algorithm::MasterMind::Partition_Worst', 'Instance OK' );
 
 my $first_string = $solver->issue_first;
 diag( "This might take a while while it finds the code $secret_code" );
