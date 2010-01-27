@@ -4,13 +4,13 @@ use warnings;
 use strict;
 use Carp;
 
-use version; our $VERSION = qv('0.1.0');
+use version; our $VERSION = qv('0.2.0');
 
 use Algorithm::Combinatorics qw(variations_with_repetition);
 
 our @ISA = qw(Exporter);
 
-our @EXPORT_OK = qw( check_combination partitions );
+our @EXPORT_OK = qw( check_combination partitions entropy );
 
 use lib qw( ../../lib ../lib ../../../lib );
 
@@ -124,6 +124,49 @@ sub check_combination {
   my $combination = shift;
   my $string = shift;
 
+  my ( %hash_combination, %hash_string );
+  my $blacks = 0;
+  my ($c, $s);
+  while ( $c = chop( $combination ) ) {
+    $s = chop( $string );
+    if ( $c eq $s ) {
+      $blacks++;
+    } else {
+      $hash_combination{ $c }++;
+      $hash_string{ $s }++;
+    }
+  }
+  my $whites = 0;
+  for my $k ( keys %hash_combination ) {
+    next if ! defined $hash_string{$k};
+    $whites += ($hash_combination{$k} > $hash_string{$k})
+      ?$hash_string{$k}
+	:$hash_combination{$k};
+  }
+  return { blacks => $blacks,
+	   whites => $whites };
+}
+
+sub distance {
+  my $self = shift;
+  my $combination = shift || croak "Can't compute distance to nothing";
+  my $rules =  $self->number_of_rules();
+  my $matches = $self->matches( $combination );
+
+  my $distance = 0;
+  my @rules = @{$self->{'_rules'}};
+  for ( my $r = 0; $r <= $#rules; $r++) {
+    $distance -= abs( $rules[$r]->{'blacks'} - $matches->{'result'}->[$r]->{'blacks'} ) +
+      abs( $rules[$r]->{'whites'} - $matches->{'result'}->[$r]->{'whites'} );
+  }
+
+  return [$distance, $matches->{'matches'}];
+}
+
+sub check_combination_old {
+  my $combination = shift;
+  my $string = shift;
+
   my @combination_arr = split(//, $combination );
   my @string_arr = split(//, $string);
   my $blacks = 0;
@@ -192,6 +235,19 @@ sub all_combinations {
   
 }
 
+sub entropy {
+  my $combination = shift;
+  my %freqs;
+  map( $freqs{$_}++, split( //, $combination));
+  my $entropy;
+  for my $k (keys %freqs ) {
+    my $probability = $freqs{$k}/length($combination);
+    $entropy -= $probability * log ($probability);
+  }
+  return $entropy;
+}
+
+
 "4 blacks, 0 white"; # Magic true value required at end of module
 
 __END__
@@ -244,6 +300,18 @@ secret code.
 Checks a combination against the secret code, returning a hashref with
 the number of blacks (correct in position) and whites (correct in
 color, not position)
+
+=head2 distance( $object )
+
+Computes distance to a consistent combination, computed as the number
+of blacks and whites that need change to become a consistent
+combination. 
+
+
+=head2 check_combination_old ( $secret_code,
+$combination )
+
+Old way of checking combinations, eliminated after profiling
 
 =head2 check_rule ($rule, $combination) 
 
@@ -320,6 +388,9 @@ Returns all possible combinations of the current alphabet and length
 in an array. Be careful with that, it could very easily fill up your
 memory, depending on length and alphabet size.
 
+=head2 entropy( $string )
+
+Computes the string entropy
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -328,7 +399,9 @@ Algorithm::MasterMind requires no configuration files or environment variables.
 
 =head1 DEPENDENCIES
 
-L<Algorithm::Evolutionary>, but only for one of the strategies.
+L<Algorithm::Evolutionary>, but only for one of the
+strategies. L<Algorithm::Combinatorics>, used to generate combinations
+and for exhaustive search strategies. 
 
 
 =head1 INCOMPATIBILITIES

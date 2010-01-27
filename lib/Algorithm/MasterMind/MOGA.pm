@@ -1,23 +1,23 @@
-package Algorithm::MasterMind::EDA;
+package Algorithm::MasterMind::MOGA;
 
 use warnings;
 use strict;
 use Carp;
 
-use lib qw(../../lib 
-	   ../../../lib
+use lib qw( ../../../lib
+	    ../../lib 
 	   ../../../../Algorithm-Evolutionary/lib
 	   ../../../Algorithm-Evolutionary/lib
 	   ../../Algorithm-Evolutionary/lib);
 
-our $VERSION =   sprintf "%d.%03d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/g; 
+our $VERSION =   sprintf "%d.%03d", q$Revision: 1.8 $ =~ /(\d+)\.(\d+)/g; 
 
-use base 'Algorithm::MasterMind::Evolutionary_Base';
+use base 'Algorithm::MasterMind';
 
 use Algorithm::MasterMind qw(entropy);
 
 use Algorithm::Evolutionary qw( Individual::BitString
-				Op::EDA_step );
+				Op::Easy_MO );
 
 sub fitness {
     my $self = shift;
@@ -33,6 +33,39 @@ sub fitness {
       
 }
 
+sub fitness_orig {
+  my $self = shift;
+  my $object = shift;
+  my $combination = $object->{'_str'};
+  my $matches = $self->matches( $combination );
+  $object->{'_matches'} = $matches->{'matches'};
+
+  my $fitness = 1;
+  my @rules = @{$self->{'_rules'}};
+  for ( my $r = 0; $r <= $#rules; $r++) {
+    $fitness += abs( $rules[$r]->{'blacks'} - $matches->{'result'}->[$r]->{'blacks'} ) +
+      abs( $rules[$r]->{'whites'} - $matches->{'result'}->[$r]->{'whites'} );
+  }
+  return 1/$fitness;
+}
+
+sub fitness_compress {
+  my $self = shift;
+  my $object = shift;
+  my $combination = $object->{'_str'};
+  my $matches = $self->matches( $combination );
+  $object->{'_matches'} = $matches->{'matches'};
+  my $fitness = 1;
+  my @rules = @{$self->{'_rules'}};
+  my $rules_string = $combination;
+  for ( my $r = 0; $r <= $#rules; $r++) {
+    $rules_string .= $rules[$r]->{'combination'};
+    $fitness += abs( $rules[$r]->{'blacks'} - $matches->{'result'}->[$r]->{'blacks'} ) +
+      abs( $rules[$r]->{'whites'} - $matches->{'result'}->[$r]->{'whites'} );
+  }
+  
+  return entropy($rules_string)/$fitness;
+}
 
 sub initialize {
   my $self = shift;
@@ -44,8 +77,8 @@ sub initialize {
   $self->{'_first'} = 'orig' if !$self->{'_first'};
   my $length = $options->{'length'}; 
 
-  #----------------------------------------------------------#
-  #                                                          #
+#----------------------------------------------------------#
+#
   my $fitness;
   if ( $self->{'_fitness'} eq 'orig' ) {
     $fitness = sub { $self->fitness_orig(@_) };
@@ -55,7 +88,7 @@ sub initialize {
     $fitness = sub { $self->fitness_compress(@_) };
   }
 
-  #EDA itself
+#EDA itself
   my $eda = new Algorithm::Evolutionary::Op::EDA_step( $fitness, 
 						       $options->{'replacement_rate'},
 						       $options->{'pop_size'},
@@ -131,16 +164,16 @@ __END__
 
 =head1 NAME
 
-Algorithm::MasterMind::EDA - Solver using an Estimation of Distribution Algorithm
+Algorithm::MasterMind::MOGA - Solver using an Estimation of Distribution Algorithm
 
 
 =head1 SYNOPSIS
 
-    use Algorithm::MasterMind::EDA;
+    use Algorithm::MasterMind::MOGA;
     my $secret_code = 'EAFC';
     my $population_size = 200;
     my @alphabet = qw( A B C D E F );
-    my $solver = new Algorithm::MasterMind::EDA { alphabet => \@alphabet,
+    my $solver = new Algorithm::MasterMind::MOGA { alphabet => \@alphabet,
 						length => length( $secret_code ),
 						  pop_size => $population_size};
   
@@ -148,7 +181,7 @@ Algorithm::MasterMind::EDA - Solver using an Estimation of Distribution Algorith
 
 =head1 DESCRIPTION
 
-Uses L<Algorithm::Evolutionary> instance of EDAs to solve MM; as there
+Uses L<Algorithm::Evolutionary> instance of MOGAs to solve MM; as there
 are two different fitness functions you can use; probably
 C<fitness_orig> works better. 
 
@@ -159,13 +192,23 @@ C<fitness_orig> works better.
 Performs bookkeeping, and assigns flags depending on the
 initialization values
 
+=head2 entropy( $combination)
+
+Computes the Jensen-Shannon entropy of the string and returns it.
+
+=head2 fitness_compress( $object ) 
+
+Uses as fitness the entropy of the string attached to all the strings
+already played computed above. 
+
 =head2 new ( $options )
 
 This function, and all the rest, are directly inherited from base
 
-=head2 issue_first()
+=head2 issue_first ()
 
-Yields the first combination 
+Issues the first combination, which might be generated in a particular
+way 
 
 =head2 issue_next()
 

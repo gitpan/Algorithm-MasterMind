@@ -1,4 +1,4 @@
-package Algorithm::MasterMind::EDA;
+package Algorithm::MasterMind::Generational_Partitions;
 
 use warnings;
 use strict;
@@ -10,119 +10,124 @@ use lib qw(../../lib
 	   ../../../Algorithm-Evolutionary/lib
 	   ../../Algorithm-Evolutionary/lib);
 
-our $VERSION =   sprintf "%d.%03d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/g; 
+our $VERSION =   sprintf "%d.%03d", q$Revision: 1.2 $ =~ /(\d+)\.(\d+)/g; 
 
 use base 'Algorithm::MasterMind::Evolutionary_Base';
 
-use Algorithm::MasterMind qw(entropy);
+use Algorithm::MasterMind qw(partitions);
 
-use Algorithm::Evolutionary qw( Individual::BitString
-				Op::EDA_step );
-
-sub fitness {
-    my $self = shift;
-    my $object = shift;
-    my $combination = $object->{'_str'};
-    my $matches = $self->matches( $combination );
-    $object->{'_matches'} = $matches->{'matches'};
-    my $blacks_and_whites = 1;
-    for my $r (@{$matches->{'result'}} ) {
-	$blacks_and_whites += $r->{'blacks'} + $r->{'whites'}+ $self->{'_length'}*$r->{'match'};
-    }
-    return $blacks_and_whites;
-      
-}
-
-
-sub initialize {
-  my $self = shift;
-  my $options = shift;
+sub new {
+  my $class = shift;
+  my $generational_func = shift || croak "Need a pop-processing class\n";
+  my $generational_params = shift || croak "Need params to instantiate function\n";
+  my $options = shift || croak "Need options here in Algorithm::MasterMind::Generational_\n";
+  my $self;
+  
   for my $o ( keys %$options ) {
     $self->{"_$o"} = $options->{$o};
   }
-  $self->{'_fitness'} = 'orig' if !$self->{'_fitness'};
-  $self->{'_first'} = 'orig' if !$self->{'_first'};
-  my $length = $options->{'length'}; 
 
-  #----------------------------------------------------------#
-  #                                                          #
-  my $fitness;
-  if ( $self->{'_fitness'} eq 'orig' ) {
-    $fitness = sub { $self->fitness_orig(@_) };
-  } elsif ( $self->{'_fitness'} eq 'naive' ) {
-    $fitness = sub { $self->fitness(@_) };
-  } elsif ( $self->{'_fitness'} eq 'compress' ) {
-    $fitness = sub { $self->fitness_compress(@_) };
-  }
+  $self->{'_fitness'} =  sub { $self->fitness_orig(@_) } ;
+  my $ga;
+  eval "\$ga  = new Algorithm::Evolutionary::Op::$generational_func( \$self->{'_fitness'}, \@\$generational_params );";
+  croak "Problems instantiating $generational_func\n" if !$ga;
 
-  #EDA itself
-  my $eda = new Algorithm::Evolutionary::Op::EDA_step( $fitness, 
-						       $options->{'replacement_rate'},
-						       $options->{'pop_size'},
-						       $self->{'_alphabet'});
-  $self->{'_fitness'} = $fitness;
-  $self->{'_eda'} = $eda;
+  $self->{'_ga'} = $ga;
 
-  
-}
+  bless $self, $class;
 
-sub issue_first {
-  my $self = shift;
-  my ( $i, $string);
-  my @alphabet = @{ $self->{'_alphabet'}};
-  my $half = @alphabet/2;
-  if ( $self->{'_first'} eq 'orig' ) {
-    for ( $i = 0; $i < $self->{'_length'}; $i ++ ) {
-      $string .= $alphabet[ $i % $half ]; # Recommendation Knuth
-    }
-  } elsif ( $self->{'_first'} eq 'half' ) {
-    for ( $i = 0; $i < $self->{'_length'}; $i ++ ) {
-      $string .= $alphabet[ $i /2  ]; # Recommendation first paper
-    }
-  }
-  $self->{'_first'} = 1; # Flag to know when the second is due
 
-  #Initialize population for next step
-  my @pop;
-  for ( 0..$self->{'_pop_size'} ) {
-    my $indi = Algorithm::Evolutionary::Individual::String->new( $self->{'_alphabet'}, 
-								 $self->{'_length'} );
-    push( @pop, $indi );
-  }
-  
-  $self->{'_pop'}= \@pop;
-  
-  return $self->{'_last'} = $string;
+  return $self;
 }
 
 sub issue_next {
   my $self = shift;
   my $rules =  $self->number_of_rules();
-  my ($match, $best);
+  my @alphabet = @{$self->{'_alphabet'}};
+  my $length = $self->{'_length'};
   my $pop = $self->{'_pop'};
-  my $eda = $self->{'_eda'};
-
+  my $cga = $self->{'_ga'};
   map( $_->evaluate( $self->{'_fitness'}), @$pop );
-  my @ranked_pop = sort { $b->{_fitness} <=> $a->{_fitness}; } @$pop;
-  if ( $ranked_pop[0]->{'_matches'} == $rules ) { #Already found!
-    return  $self->{'_last'} = $ranked_pop[0]->{'_str'};
-  } else {
-    my $generations_passed = 0;
-    my @pop_by_matches;
-    do {
-      $eda->apply( $pop );
-      map( $_->{'_matches'} = $_->{'_matches'}?$_->{'_matches'}:-1, @$pop ); #To avoid warnings
-      @pop_by_matches = sort { $b->{'_matches'} <=> $a->{'_matches'} } @$pop;
-      $generations_passed ++;
-      $best = $pop_by_matches[0];
-      if ($generations_passed == 15 ) {
-	$eda->reset( $pop );
-	$generations_passed = 0;
-      }
-    } while ( $best->{'_matches'} < $rules );
-    return  $self->{'_last'} = $best->{'_str'};
-  }
 
+  my %consistent;
+#   print "Consistent in ", scalar keys %{$self->{'_consistent'}}, "\n";
+  if (  $self->{'_consistent'} ) { #Check for consistency
+    %consistent = %{$self->{'_consistent'}};
+    for my $c (keys %consistent ) {
+      my $match = $self->matches( $c );
+      if ( $match->{'matches'} < $rules ) {
+	delete $consistent{$c};
+      }
+    }
+  } else {
+    %consistent = ();
+  }
+#  print "Consistent out ", scalar keys %consistent, "\n";
+  my @ranked_pop = sort { $b->{_fitness} <=> $a->{_fitness}; } @$pop;
+  while ( $ranked_pop[0]->{'_matches'} == $rules ) {
+    $consistent{$ranked_pop[0]->{'_str'}} = $ranked_pop[0];
+    shift @ranked_pop;
+  }
+  my $generations_equal = 0;
+  # The 20 was computed in NICSO paper, valid for normal mastermind
+  my $number_of_consistent = keys %consistent;
+  
+#  print "C< ", join( "-", keys %consistent ), "\n";
+#  print "Consistent new ", scalar keys %consistent, "\n";
+  while (  $number_of_consistent < 20 ) {
+    my $this_number_of_consistent = $number_of_consistent;
+    $cga->apply( $pop );
+    
+    #Add new consistent combinations
+    for my $p( @$pop ) { 
+      if ( $self->matches( $p->{'_str'} )->{'matches'} == $rules ) {
+	$consistent{$p->{'_str'}} = $p;
+      }
+    }
+    
+    #Check for termination
+    $number_of_consistent = keys %consistent;
+    if ( $this_number_of_consistent == $number_of_consistent ) {
+      $generations_equal++;
+    } else {
+      $generations_equal = 0;
+    }
+    
+    if ($generations_equal == 15 ) {
+      $cga->reset( $pop );
+      $generations_equal = 0;
+    }
+    last if ( ( $generations_equal >= 3 ) && ( $number_of_consistent >= 1 ) );
+    #     print "GE $generations_equal\nNC $number_of_consistent\n";
+  }
+  
+  #  print "After GA combinations ", join( " ", keys %consistent ), "\n";
+  $self->{'_consistent'} = \%consistent;
+#  print "C> ", join( "-", keys %consistent ), "\n";
+  if ( $number_of_consistent > 1 ) {
+#    print "Consistent ", scalar keys %consistent, "\n";
+    #Use whatever we've got to compute number of partitions
+    my $partitions = partitions( keys %consistent );
+    
+    my $max_partitions = 0;
+    my %max_c;
+    for my $c ( keys %$partitions ) {
+      my $this_max =  keys %{$partitions->{$c}};
+      $max_c{$c} = $this_max;
+      if ( $this_max > $max_partitions ) {
+	$max_partitions = $this_max;
+      }
+    }
+    # Find all partitions with that max
+    my @max_c = grep( $max_c{$_} == $max_partitions, keys %max_c );
+    # Break ties
+    my $string = $max_c[ rand( @max_c )];
+    # Obtain next
+    return  $self->{'_last'} = $string;
+  } else {
+    return $self->{'_last'} = (keys %consistent)[0];
+  }
+  
 }
 
 "Many blacks, 0 white"; # Magic true value required at end of module
@@ -131,16 +136,17 @@ __END__
 
 =head1 NAME
 
-Algorithm::MasterMind::EDA - Solver using an Estimation of Distribution Algorithm
+Algorithm::MasterMind::Generational_Partitions - Skeleton class for
+generational population based algorithms, such as EDAs or EAs.
 
 
 =head1 SYNOPSIS
 
-    use Algorithm::MasterMind::EDA;
+    use Algorithm::MasterMind::Generational_Partitions;
     my $secret_code = 'EAFC';
     my $population_size = 200;
     my @alphabet = qw( A B C D E F );
-    my $solver = new Algorithm::MasterMind::EDA { alphabet => \@alphabet,
+    my $solver = new Algorithm::MasterMind::Generational_Partitions { alphabet => \@alphabet,
 						length => length( $secret_code ),
 						  pop_size => $population_size};
   
@@ -162,10 +168,6 @@ initialization values
 =head2 new ( $options )
 
 This function, and all the rest, are directly inherited from base
-
-=head2 issue_first()
-
-Yields the first combination 
 
 =head2 issue_next()
 

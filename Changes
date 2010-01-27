@@ -1,3 +1,49 @@
+2010-01-27    <jmerelo@localhost.localdomain>
+
+	* MANIFEST: Changed license back to "perl". Mostly, in order to
+	not have to modify all source. Added lots of new files with new
+	algorithms (and rather esoteric, I admit).
+
+2010-01-26    <jmerelo@localhost.localdomain>
+
+	* Makefile.PL: Added license and changed min version of
+	Algorithm::Evolutionary, just uploaded. Changed lots of modules
+	after profiling (check_combination, again), and added more
+	algorithms. 
+
+2009-11-24  Juan Julian Merelo Guervos  <jmerelo@geneura.ugr.es>
+
+	* lib/Algorithm/MasterMind.pm: Changed to 0.2 due to the new
+	modules added.
+
+	* lib/Algorithm/MasterMind/Evolutionary.pm: The new single
+	objective evolutionary works at least as well ad the old
+	EDA. Let's see if we can add partitions to it.
+
+	* lib/Algorithm/MasterMind/Evolutionary_Base.pm (issue_first):
+	Completed motion of some functions to this class. Now on to the
+	evolutionary single_objective.
+
+	* t/06_moga.t: Since this MOGA does not seem to be able to find
+	the solution, I'll just do an iteration.
+
+2009-11-23  Juan Julian Merelo Guervos  <jmerelo@geneura.ugr.es>
+
+	* MANIFEST: Added a multiobjective evolutionary that tries to find
+	the combination via finding consistent combinations.
+
+2009-11-17    <jmerelo@localhost.localdomain>
+
+	* lib/Algorithm/MasterMind.pm: Starting 0.1.1, which will include
+	multiobjective algorithms and most of the stuff we're preparing
+	for EvoStar. Starting with minor doc changes.
+
+2009-11-17  Juan Julian Merelo Guervos  <jmerelo@geneura.ugr.es>
+
+	* MANIFEST: Added several new algorithms, including Knuth's and
+	EDA. 
+	Changed minor to 0.1, since it's quite complete now. 
+
 2009-10-10    <jmerelo@localhost.localdomain>
 
 	* lib/Algorithm/MasterMind.pm (check_combination): Saving around
