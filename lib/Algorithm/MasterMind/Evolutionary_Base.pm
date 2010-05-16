@@ -76,7 +76,7 @@ __END__
 
 =head1 NAME
 
-Algorithm::MasterMind::Evolutionary - Tries to compute new solution from last
+Algorithm::MasterMind::Evolutionary_Base - Base class for evolutionary-based algorithms
 
 
 =head1 SYNOPSIS

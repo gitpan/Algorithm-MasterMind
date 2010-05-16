@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use Carp;
 
-use version; our $VERSION = qv('0.2.0');
+use version; our $VERSION = qv('0.3.0');
 
 use Algorithm::Combinatorics qw(variations_with_repetition);
 
@@ -147,7 +147,7 @@ sub check_combination {
 	   whites => $whites };
 }
 
-sub distance {
+sub distance_taxicab {
   my $self = shift;
   my $combination = shift || croak "Can't compute distance to nothing";
   my $rules =  $self->number_of_rules();
@@ -158,6 +158,24 @@ sub distance {
   for ( my $r = 0; $r <= $#rules; $r++) {
     $distance -= abs( $rules[$r]->{'blacks'} - $matches->{'result'}->[$r]->{'blacks'} ) +
       abs( $rules[$r]->{'whites'} - $matches->{'result'}->[$r]->{'whites'} );
+  }
+
+  return [$distance, $matches->{'matches'}];
+}
+
+sub distance_chebyshev {
+  my $self = shift;
+  my $combination = shift || croak "Can't compute distance to nothing";
+  my $rules =  $self->number_of_rules();
+  my $matches = $self->matches( $combination );
+
+  my $distance = 0;
+  my @rules = @{$self->{'_rules'}};
+  for ( my $r = 0; $r <= $#rules; $r++) {
+    my $diff_black = abs( $rules[$r]->{'blacks'} - $matches->{'result'}->[$r]->{'blacks'});
+    my $diff_white = abs( $rules[$r]->{'whites'} - $matches->{'result'}->[$r]->{'whites'} );
+    my $this_distance = ($diff_black > $diff_white)?$diff_black:$diff_white;
+    $distance -= $this_distance ;
   }
 
   return [$distance, $matches->{'matches'}];
@@ -233,6 +251,29 @@ sub all_combinations {
 						       $self->{'_length'});
   my @combinations = map( join( "", @$_), @combinations_array );
   
+}
+
+sub all_responses {
+    my $self = shift;
+    my $length = $self->{'_length'};
+    my @responses_array = variations_with_repetition( ['B', 'W', '-'], 
+						      $length );
+    my %responses;
+    for my $r ( @responses_array ) {
+      my %partial = ( W => 0,
+		      B => 0 );
+      for my $c (@$r) {
+	$partial{$c}++;
+      }
+      
+      $responses{$partial{'B'}."B-".$partial{'W'}."W"} = 1;
+    }
+    # Delete impossible
+    my $impossible = ($length-1)."B-1W";
+    delete $responses{$impossible};
+    my @possible_responses = sort keys %responses;
+    return @possible_responses;
+
 }
 
 sub entropy {
@@ -392,6 +433,21 @@ memory, depending on length and alphabet size.
 
 Computes the string entropy
 
+=head2 distance_taxicab( $string )
+
+Computes the sums of taxicab distances to all combinations in the
+game, and returns it as [$distance, $matches]
+
+=head2 distance_chebyshev( $string )
+
+Computes the Chebyshev distance, that is, the max of distances in all
+dimensions. Returns as a arrayref with [$distance, matches]
+
+=head2 all_responses()
+
+Returns all possible responses (combination of black and white pegs)
+for the combination length
+
 =head1 CONFIGURATION AND ENVIRONMENT
 
 Algorithm::MasterMind requires no configuration files or environment variables.
@@ -431,6 +487,20 @@ the C<apps> directory of this distribution.
 The development of this projects is hosted at sourceforge,
 https://sourceforge.net/projects/opeal/develop, check it out for the
     latest bleeding edge release. 
+
+If you use any of these modules for your own research, we would very
+grateful if you would reference the papers that describe this, such as
+this one:
+
+ @article{merelo2010finding,
+  title={{Finding Better Solutions to the Mastermind Puzzle Using Evolutionary Algorithms}},
+  author={Merelo-Guerv{\'o}s, J. and Runarsson, T.},
+  journal={Applications of Evolutionary Computation},
+  pages={121--130},
+  year={2010},
+  publisher={Springer}
+ }
+
 
 =head1 AUTHOR
 

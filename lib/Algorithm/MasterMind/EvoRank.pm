@@ -8,7 +8,7 @@ use lib qw(../../lib ../../../../Algorithm-Evolutionary/lib/
 	   ../../Algorithm-Evolutionary/lib/
 	   ../../../lib);
 
-our $VERSION =   sprintf "%d.%03d", q$Revision: 1.3 $ =~ /(\d+)\.(\d+)/g; 
+our $VERSION =   sprintf "%d.%03d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/g; 
 
 use base 'Algorithm::MasterMind::Evolutionary_Base';
 
@@ -22,7 +22,7 @@ use Algorithm::Evolutionary qw(Op::QuadXOver
 			       Individual::String );
 
 # ---------------------------------------------------------------------------
-my $max_number_of_consistent = 20;   # The 20 was computed in NICSO paper, valid for normal mastermind
+
 
 sub initialize {
   my $self = shift;
@@ -32,15 +32,19 @@ sub initialize {
   }
 
   # Variation operators
-  my $m = new Algorithm::Evolutionary::Op::String_Mutation; # Rate = 1
-  my $c = Algorithm::Evolutionary::Op::QuadXOver->new( 1,2 ); 
+  my $mutation_rate = $options->{'mutation_rate'} || 1;
+  my $xover_rate = $options->{'xover_rate'} || 2;
+  my $max_number_of_consistent = $options->{'consistent_set_card'} || 20;   # The 20 was computed in NICSO paper, valid for normal mastermind
+  my $m = new Algorithm::Evolutionary::Op::String_Mutation $mutation_rate ; # Rate = 1
+  my $c = Algorithm::Evolutionary::Op::QuadXOver->new( 1, $xover_rate ); 
 
-  my $fitness = sub { $self->fitness_orig(@_) };
   my $ga = new Algorithm::Evolutionary::Op::Canonical_GA_NN( $options->{'replacement_rate'},
 							     [ $m, $c] );
-  $self->{'_fitness'} = $fitness;
+  if (!$self->{'_distance'}) {
+    $self->{'_distance'} = 'distance_taxicab';
+  }
   $self->{'_ga'} = $ga;
-
+  $self->{'_max_consistent'} = $max_number_of_consistent;
 }
 
 sub compute_fitness {
@@ -67,12 +71,14 @@ sub issue_next {
   my $length = $self->{'_length'};
   my $pop = $self->{'_pop'};
   my $ga = $self->{'_ga'};
+  my $max_number_of_consistent  = $self->{'_max_consistent'};
 
 #  print "Rules ", $rules, "\n";
   #Recalculate distances, new game
   my (%consistent );
+  my $distance = $self->{'_distance'};
   for my $p ( @$pop ) {
-    ($p->{'_distance'}, $p->{'_matches'}) = @{$self->distance( $p->{'_str'} )};
+    ($p->{'_distance'}, $p->{'_matches'}) = @{$self->$distance( $p->{'_str'} )};
      $consistent{$p->{'_str'}} = $p if ($p->{'_matches'} == $rules);
   }
 
@@ -99,7 +105,7 @@ sub issue_next {
     #Compute new distances
     %consistent = ();  # Empty to avoid problems
     for my $p ( @$pop ) {
-      ($p->{'_distance'}, $p->{'_matches'}) = @{$self->distance( $p->{'_str'} )};
+      ($p->{'_distance'}, $p->{'_matches'}) = @{$self->$distance( $p->{'_str'} )};
       if ($p->{'_matches'} == $rules) {
 	$consistent{$p->{'_str'}} = $p;
 	#	print $p->{'_str'}, " -> ", $p->{'_distance'}, " - ";
@@ -112,14 +118,11 @@ sub issue_next {
     if ($generations_equal == 50 ) {
       $ga->reset( $pop );
       for my $p ( @$pop ) {
-	($p->{'_distance'}, $p->{'_matches'}) = @{$self->distance( $p->{'_str'} )};
+	($p->{'_distance'}, $p->{'_matches'}) = @{$self->$distance( $p->{'_str'} )};
       }
       $generations_equal = 0;
     }
 
-#     print "Consistent - => ", join( " - ", 
-# 				    map( "* $_ - ".$consistent{$_}->{'_matches'}, 
-# 					 sort keys %consistent ) ), "\n\n"; 
     #Check termination conditions
     $this_number_of_consistent =  keys %consistent;
     if ( $this_number_of_consistent == $number_of_consistent ) {

@@ -118,7 +118,7 @@ __END__
 
 =head1 NAME
 
-Algorithm::MasterMind::Evolutionary_Partions - Evolutionary algorith with the partition method
+Algorithm::MasterMind::Evolutionary_Partitions - Evolutionary algorithm with the partition method
 
 
 =head1 SYNOPSIS

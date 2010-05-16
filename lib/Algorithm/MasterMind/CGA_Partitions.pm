@@ -107,16 +107,16 @@ __END__
 
 =head1 NAME
 
-Algorithm::MasterMind::EDA - Solver using an Estimation of Distribution Algorithm
+Algorithm::MasterMind::CGA_Partitions - Solver using a Canonical GA
 
 
 =head1 SYNOPSIS
 
-    use Algorithm::MasterMind::EDA;
+    use Algorithm::MasterMind::CGA_Partitions;
     my $secret_code = 'EAFC';
     my $population_size = 200;
     my @alphabet = qw( A B C D E F );
-    my $solver = new Algorithm::MasterMind::EDA { alphabet => \@alphabet,
+    my $solver = new Algorithm::MasterMind::CGA_Partitions { alphabet => \@alphabet,
 						length => length( $secret_code ),
 						  pop_size => $population_size};
   
@@ -124,7 +124,7 @@ Algorithm::MasterMind::EDA - Solver using an Estimation of Distribution Algorith
 
 =head1 DESCRIPTION
 
-Uses L<Algorithm::Evolutionary> instance of EDAs to solve MM; as there
+Uses L<Algorithm::Evolutionary> instance of canonical genetic algorithm to solve MM; as there
 are two different fitness functions you can use; probably
 C<fitness_orig> works better. 
 

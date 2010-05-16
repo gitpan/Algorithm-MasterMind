@@ -110,7 +110,7 @@ __END__
 
 =head1 NAME
 
-Algorithm::MasterMind::EDA - Solver using an Estimation of Distribution Algorithm
+Algorithm::MasterMind::EDA_Partitions - Solver using an EDA plus partitions
 
 
 =head1 SYNOPSIS

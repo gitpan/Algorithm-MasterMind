@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Algorithm-MasterMind
-version:            0.2.0
+version:            0.3.0
 abstract:           Framework for algorithms that solve the MasterMind game
 author:
     - JJ Merelo <jj@merelo.net>
