@@ -8,7 +8,7 @@ use lib qw(../../lib ../../../../Algorithm-Evolutionary/lib/
 	   ../../Algorithm-Evolutionary/lib/
 	   ../../../lib);
 
-our $VERSION =   sprintf "%d.%03d", q$Revision: 1.7 $ =~ /(\d+)\.(\d+)/g; 
+our $VERSION =   sprintf "%d.%03d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/g; 
 
 use base 'Algorithm::MasterMind::Evolutionary_Base';
 
@@ -21,20 +21,23 @@ use Algorithm::Evolutionary qw(Op::QuadXOver
 			       Op::Canonical_GA_NN
 			       Individual::String );
 
-# ---------------------------------------------------------------------------
+use Clone::Fast qw(clone);
 
+# ---------------------------------------------------------------------------
+use constant { MAX_CONSISTENT_SET => 20, # This number 20 was computed in NICSO paper, valid for default 4-6 mastermind
+	       MAX_GENERATIONS_EQUAL => 3} ;
 
 sub initialize {
   my $self = shift;
   my $options = shift;
   for my $o ( keys %$options ) {
-    $self->{"_$o"} = $options->{$o};
+    $self->{"_$o"} = clone($options->{$o});
   }
 
   # Variation operators
   my $mutation_rate = $options->{'mutation_rate'} || 1;
   my $xover_rate = $options->{'xover_rate'} || 2;
-  my $max_number_of_consistent = $options->{'consistent_set_card'} || 20;   # The 20 was computed in NICSO paper, valid for normal mastermind
+  my $max_number_of_consistent = $options->{'consistent_set_card'} || MAX_CONSISTENT_SET;   
   my $m = new Algorithm::Evolutionary::Op::String_Mutation $mutation_rate ; # Rate = 1
   my $c = Algorithm::Evolutionary::Op::QuadXOver->new( 1, $xover_rate ); 
 
@@ -73,13 +76,13 @@ sub issue_next {
   my $ga = $self->{'_ga'};
   my $max_number_of_consistent  = $self->{'_max_consistent'};
 
-#  print "Rules ", $rules, "\n";
   #Recalculate distances, new game
   my (%consistent );
   my $distance = $self->{'_distance'};
   for my $p ( @$pop ) {
-    ($p->{'_distance'}, $p->{'_matches'}) = @{$self->$distance( $p->{'_str'} )};
-     $consistent{$p->{'_str'}} = $p if ($p->{'_matches'} == $rules);
+      ($p->{'_distance'}, $p->{'_matches'}) = @{$self->$distance( $p->{'_str'} )};
+#      ($p->{'_distance'}, $p->{'_matches'}) = @{$self->distance( $p )};
+      $consistent{$p->{'_str'}} = $p if ($p->{'_matches'} == $rules);
   }
 
   my $number_of_consistent = keys %consistent;
@@ -93,8 +96,7 @@ sub issue_next {
   my $this_number_of_consistent = $number_of_consistent;
   
   while ( $this_number_of_consistent < $max_number_of_consistent ) {  
-
-      
+     
     #Compute fitness
     compute_fitness( $pop );
     #      print join( " - ", map( $_->{'_fitness'}, @$pop )), "\n";
@@ -106,21 +108,23 @@ sub issue_next {
     %consistent = ();  # Empty to avoid problems
     for my $p ( @$pop ) {
       ($p->{'_distance'}, $p->{'_matches'}) = @{$self->$distance( $p->{'_str'} )};
-      if ($p->{'_matches'} == $rules) {
-	$consistent{$p->{'_str'}} = $p;
-	#	print $p->{'_str'}, " -> ", $p->{'_distance'}, " - ";
-      } else {
-	$p->{'_partitions'} = 0;
-      }
+#	($p->{'_distance'}, $p->{'_matches'}) = @{$self->distance( $p )};
+	if ($p->{'_matches'} == $rules) {
+	    $consistent{$p->{'_str'}} = $p;
+	    #	print $p->{'_str'}, " -> ", $p->{'_distance'}, " - ";
+	} else {
+	    $p->{'_partitions'} = 0;
+	}
     }
     
     #Check termination again, and reset
     if ($generations_equal == 50 ) {
-      $ga->reset( $pop );
-      for my $p ( @$pop ) {
+	$ga->reset( $pop );
+	for my $p ( @$pop ) {
 	($p->{'_distance'}, $p->{'_matches'}) = @{$self->$distance( $p->{'_str'} )};
-      }
-      $generations_equal = 0;
+#	    ($p->{'_distance'}, $p->{'_matches'}) = @{$self->distance( $p )};
+	}
+	$generations_equal = 0;
     }
 
     #Check termination conditions
@@ -138,7 +142,7 @@ sub issue_next {
 	}
       }
     }
-    last if ( $generations_equal >= 3 ) && ( $this_number_of_consistent >= 1 ) ;
+    last if ( $generations_equal >= MAX_GENERATIONS_EQUAL ) && ( $this_number_of_consistent >= 1 ) ;
     #    print "G $generations_equal $this_number_of_consistent \n";
   }
   
@@ -217,7 +221,7 @@ JJ Merelo  C<< <jj@merelo.net> >>
 
 =head1 LICENCE AND COPYRIGHT
 
-Copyright (c) 2009, JJ Merelo C<< <jj@merelo.net> >>. All rights reserved.
+Copyright (c) 2009, 2010 JJ Merelo C<< <jj@merelo.net> >>. All rights reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself. See L<perlartistic>.

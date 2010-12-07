@@ -4,13 +4,16 @@ use warnings;
 use strict;
 use Carp;
 
-use version; our $VERSION = qv('0.3.0');
+use version; our $VERSION = qv("v0.3.1");
 
 use Algorithm::Combinatorics qw(variations_with_repetition);
 
+#use Memoize;
+#memoize( "check_combination" );
+
 our @ISA = qw(Exporter);
 
-our @EXPORT_OK = qw( check_combination partitions entropy );
+our @EXPORT_OK = qw( check_combination partitions entropy check_rule );
 
 use lib qw( ../../lib ../lib ../../../lib );
 
@@ -150,7 +153,6 @@ sub check_combination {
 sub distance_taxicab {
   my $self = shift;
   my $combination = shift || croak "Can't compute distance to nothing";
-  my $rules =  $self->number_of_rules();
   my $matches = $self->matches( $combination );
 
   my $distance = 0;
@@ -287,7 +289,6 @@ sub entropy {
   }
   return $entropy;
 }
-
 
 "4 blacks, 0 white"; # Magic true value required at end of module
 

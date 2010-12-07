@@ -10,7 +10,7 @@ use lib qw(../../lib
 	   ../../../Algorithm-Evolutionary/lib
 	   ../../Algorithm-Evolutionary/lib);
 
-our $VERSION =   sprintf "%d.%03d", q$Revision: 1.2 $ =~ /(\d+)\.(\d+)/g; 
+our $VERSION =   sprintf "%d.%03d", q$Revision: 1.3 $ =~ /(\d+)\.(\d+)/g; 
 
 use base 'Algorithm::MasterMind::EDA';
 

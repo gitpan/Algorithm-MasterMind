@@ -9,11 +9,11 @@ use lib qw(../../lib
 	   ../../../../Algorithm-Evolutionary/lib/ 
 	   ../../Algorithm-Evolutionary/lib/);
 
-our $VERSION =   sprintf "%d.%03d", q$Revision: 1.4 $ =~ /(\d+)\.(\d+)/g; 
+our $VERSION = sprintf "%d.%03d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/g; 
 
 use base 'Algorithm::MasterMind';
 
-use Algorithm::MasterMind qw(entropy);
+use Algorithm::MasterMind qw(entropy check_rule);
 
 use Algorithm::Evolutionary::Individual::String;
 
@@ -30,8 +30,9 @@ sub fitness_compress {
   my $rules_string = $combination;
   for ( my $r = 0; $r <= $#rules; $r++) {
     $rules_string .= $rules[$r]->{'combination'};
-    $fitness += abs( $rules[$r]->{'blacks'} - $matches->{'result'}->[$r]->{'blacks'} ) +
-      abs( $rules[$r]->{'whites'} - $matches->{'result'}->[$r]->{'whites'} );
+    $fitness += abs( $rules[$r]->{'blacks'} 
+		     - $matches->{'result'}->[$r]->{'blacks'} ) 
+      + abs( $rules[$r]->{'whites'} - $matches->{'result'}->[$r]->{'whites'} );
   }
   
   return entropy($rules_string)/$fitness;
@@ -70,6 +71,59 @@ sub reset {
   }
   $self->{'_pop'}= \@pop;
 }
+
+sub realphabet {
+    my $self = shift;
+    my $alphabet = $self->{'_alphabet'};
+    my $pop = $self->{'_pop'};
+     
+    my %alphabet_hash;
+    map ( $alphabet_hash{$_} = 1, @$alphabet );
+
+    for my $p ( @$pop ) {
+	for ( my $i = 0; $i < length( $p->{'_str'} ); $i++ ) {
+	    if ( !$alphabet_hash{substr($p->{'_str'},$i,1)} ) {
+		substr($p->{'_str'},$i,1, $alphabet->[rand( @$alphabet )]);
+	    }
+	}
+	$p->{'_chars'} = $alphabet;
+    }
+}
+
+sub shrink_to {
+  my $self = shift;
+  my $new_size = shift || croak "Need a new size" ;
+
+  do  {
+    splice( @{$self->{'_pop'}}, rand( @{$self->{'_pop'}} ), 1 )
+  } until (@{$self->{'_pop'}} < $new_size );
+}
+
+# sub distance {
+#     my $self = shift;
+#     my $evo_comb = shift || croak "Need somebody to love\n"; 
+
+#     my @rules = @{$self->{'_rules'}};
+#     my $matches = 0;
+#     my $distance = 0;
+# #  print "Checking $string, ", $self->{'_evaluated'}, "\n";
+#     my $string = $evo_comb->{'_str'};
+#     for my $r ( @rules ) {    
+# 	my $rule_result; 
+# 	if ( !$evo_comb->{'_results'}->{$r->{'combination'}} ) {
+# 	    $rule_result = check_rule( $r, $string );
+# 	    $evo_comb->{'_results'}->{$r->{'combination'}} = $rule_result;
+# 	} else {
+# 	    $rule_result = $evo_comb->{'_results'}->{$r->{'combination'}};
+# 	}
+# 	$matches++ if ( $rule_result->{'match'} );
+# 	$distance -= abs( $r->{'blacks'} - $rule_result->{'blacks'} ) +
+# 	    abs( $r->{'whites'} - $rule_result->{'whites'} );
+#     }
+
+#     return [$distance, $matches];
+    
+# }
 "some blacks, 0 white"; # Magic true value required at end of module
 
 __END__
@@ -103,6 +157,16 @@ Original fitness, used in one of the former papers
 =head2 reset()
 
 Create a new population
+
+=head2 realphabet()
+
+Convert the whole population to a new alphabet, changing no-existent
+letters to random letters in the new alphabet. 
+
+=head2 shrink_to( $new_size )
+
+Reduce population size (in case a partial solution has been found).
+
 
 =head2 issue_first ()
 
