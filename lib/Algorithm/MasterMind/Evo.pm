@@ -336,7 +336,7 @@ JJ Merelo  C<< <jj@merelo.net> >>
 
 =head1 LICENCE AND COPYRIGHT
 
-Copyright (c) 2009, 2010 JJ Merelo C<< <jj@merelo.net> >>. All rights reserved.
+Copyright (c) 2009, 2012 JJ Merelo C<< <jj@merelo.net> >>. All rights reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself. See L<perlartistic>.
