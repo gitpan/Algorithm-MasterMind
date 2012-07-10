@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Algorithm-MasterMind
-version:            v0.3.1
+version:            v0.4.0
 abstract:           Framework for algorithms that solve the MasterMind game
 author:
     - JJ Merelo <jj@merelo.net>
@@ -12,7 +12,7 @@ build_requires:
     ExtUtils::MakeMaker:  0
 requires:
     Algorithm::Combinatorics:  0
-    Algorithm::Evolutionary:  0.72
+    Algorithm::Evolutionary:  0.75
     Clone::Fast:          0
     Test::More:           0
     version:              0.77

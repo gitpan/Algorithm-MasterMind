@@ -4,16 +4,17 @@ use warnings;
 use strict;
 use Carp;
 
-use version; our $VERSION = qv("v0.3.1");
+use version; our $VERSION = qv("v0.4.0");
 
 use Algorithm::Combinatorics qw(variations_with_repetition);
 
 #use Memoize;
-#memoize( "check_combination" );
+#memoize( "check_rule" );
 
 our @ISA = qw(Exporter);
 
-our @EXPORT_OK = qw( check_combination partitions entropy check_rule );
+our @EXPORT_OK = qw( check_combination partitions entropy random_string 
+		     response_as_string);
 
 use lib qw( ../../lib ../lib ../../../lib );
 
@@ -25,7 +26,8 @@ sub new {
   my $options = shift || croak "Need options here in Algorithm::MasterMind::New\n";
 
   my $self =  { _rules => [],
-		_evaluated => 0 };
+		_evaluated => 0,
+		_hash_rules => {} };
 
   bless $self, $class;
   $self->initialize( $options );
@@ -34,17 +36,35 @@ sub new {
 
 sub random_combination {
   my $self = shift;
-  my $string_to_play;
-  my @alphabet = @{ $self->{'_alphabet'} };
-  for (my $i = 0; $i <  $self->{'_length'}; $i++ ) {
-    $string_to_play .= $alphabet[ rand( @alphabet) ];
+  return random_string( $self->{'_alphabet'}, $self->{'_length'});
+}
+
+sub random_string {
+  my $alphabet = shift;
+  my $length = shift;
+  my $string;
+  my @alphabet = @{$alphabet};
+  for (my $i = 0; $i <  $length; $i++ ) {
+    $string .= $alphabet[ rand( @alphabet) ];
   }
-  return $string_to_play;
+  return $string;
 }
 
 sub issue_first { #Default implementation
   my $self = shift;
   return $self->{'_last'} = $self->random_combination;
+}
+
+sub start_from {
+  my $class = shift;
+  my $options = shift || croak "Options needed to start!";
+
+  my $self = {};
+  bless $self, $class;
+  for my $o ( qw( consistent alphabet rules evaluated ) ) {
+    $self->{"_$o"} = $options->{$o};
+  }
+  return $self;
 }
 
 sub issue_first_Knuth {
@@ -102,7 +122,7 @@ sub matches {
 		 result => [] };
 #  print "Checking $string, ", $self->{'_evaluated'}, "\n";
   for my $r ( @rules ) {    
-    my $rule_result = check_rule( $r, $string );
+    my $rule_result = $self->check_rule( $r, $string );
     $result->{'matches'}++ if ( $rule_result->{'match'} );
     push @{ $result->{'result'} }, $rule_result;
   }
@@ -111,16 +131,20 @@ sub matches {
 }
 
 sub check_rule {
+  my $self = shift;
   my $rule = shift;
   my $string = shift;
-  my $result = check_combination( $rule->{'combination'}, $string );
-  if ( ( $rule->{'blacks'} == $result->{'blacks'} )
-       && ( $rule->{'whites'} == $result->{'whites'} ) ) {
-    $result->{'match'} = 1;
-  } else {
-    $result->{'match'} = 0;
-  }
-  return $result;
+  if ( ! $self->{'_rules_hash'}->{ $rule->{'combination'} }{ $string } ) {
+    my $result = check_combination( $rule->{'combination'}, $string );
+    if ( ( $rule->{'blacks'} == $result->{'blacks'} )
+	 && ( $rule->{'whites'} == $result->{'whites'} ) ) {
+      $result->{'match'} = 1;
+    } else {
+      $result->{'match'} = 0;
+    }
+    $self->{'_rules_hash'}->{ $rule->{'combination'} }{ $string } = $result;
+  } 
+  return $self->{'_rules_hash'}->{ $rule->{'combination'} }{ $string };
 }
 
 sub check_combination {
@@ -232,14 +256,20 @@ sub not_in_combination {
 }
 
 sub partitions {
-  my @combinations = @_;
+  my @combinations = sort @_;
 
   my %partitions;
-
+  my %hash_results;
   for my $c ( @combinations ) {
     for my $cc ( @combinations ) {
       next if $c eq $cc;
-      my $result = check_combination ( $c, $cc );
+      my $result;
+      if ( $c lt $cc ) {
+	$result = check_combination ( $c, $cc );
+	$hash_results{$c}{$cc} = $result;
+      } else {
+	$result = $hash_results{$cc}{$c};
+      }
       $partitions{$c}{$result->{'blacks'}."b-".$result->{'whites'}."w"}++;
     }
     
@@ -289,6 +319,11 @@ sub entropy {
   }
   return $entropy;
 }
+
+sub response_as_string {
+  return $_[0]->{'blacks'}."b-".$_[0]->{'whites'}."w";
+}
+  
 
 "4 blacks, 0 white"; # Magic true value required at end of module
 
@@ -365,6 +400,11 @@ combination and how it scored against the secret code
 Issues the first combination, which might be generated in a particular
 way 
 
+=head2 start_from ()
+
+Used when you want to create an solver once it's been partially
+solved; it contains partial solutions. 
+
 =head2 issue_first_Knuth
 
 First combination looking like AABC for the normal
@@ -392,7 +432,7 @@ Returns the number of rules in the algorithm
 
 =head2 rules()
 
-Returns the rules (combinations, blacks, whites played so far) y a
+Returns the rules (combinations, blacks, whites played so far) as a
 reference to array
 
 =head2 matches( $string ) 

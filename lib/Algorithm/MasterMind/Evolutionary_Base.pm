@@ -7,13 +7,15 @@ use Carp;
 use lib qw(../../lib 
 	   ../../../lib
 	   ../../../../Algorithm-Evolutionary/lib/ 
-	   ../../Algorithm-Evolutionary/lib/);
+	   ../../../Algorithm-Evolutionary/lib/ 
+	   ../../Algorithm-Evolutionary/lib/
+	   ../Algorithm-Evolutionary/lib/);
 
-our $VERSION = sprintf "%d.%03d", q$Revision: 1.9 $ =~ /(\d+)\.(\d+)/g; 
+our $VERSION = sprintf "%d.%03d", q$Revision: 1.13 $ =~ /(\d+)\.(\d+)/g; 
 
 use base 'Algorithm::MasterMind';
 
-use Algorithm::MasterMind qw(entropy check_rule);
+use Algorithm::MasterMind qw(entropy);
 
 use Algorithm::Evolutionary::Individual::String;
 
@@ -58,10 +60,25 @@ sub issue_first {
   my $self = shift;
   #Initialize population for next step
   $self->reset();
+  $self->{'_first'} = 1; # flag for first
   return $self->{'_last'} = $self->issue_first_Knuth();
 }
 
 sub reset {
+  my $self=shift;
+  my %pop;
+  if (  scalar( (@{$self->{'_alphabet'}})** $self->{'_length'} ) < $self->{'_pop_size'} ) {
+      croak( "Can't do, population bigger than space" );
+  }
+  while ( scalar ( keys %pop ) < $self->{'_pop_size'} ) {
+      my $indi = Algorithm::Evolutionary::Individual::String->new( $self->{'_alphabet'}, $self->{'_length'} );
+      $pop{ $indi->{'_str'}} = $indi;
+  }
+  my @pop = values %pop;
+  $self->{'_pop'}= \@pop;
+}
+
+sub reset_old {
   my $self=shift;
   my @pop;
   for ( 0.. ($self->{'_pop_size'}-1) ) {
@@ -154,9 +171,13 @@ entropy and the distance to a consistent combination.
 
 Original fitness, used in one of the former papers
 
+=head2 reset_old()
+
+Create a new population, old version
+
 =head2 reset()
 
-Create a new population
+Create a new population making sure that all strings appear only once. 
 
 =head2 realphabet()
 

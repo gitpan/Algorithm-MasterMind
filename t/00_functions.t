@@ -3,11 +3,12 @@
 use strict;
 use warnings;
 
-use Test::More tests => 28;
+use Test::More;
 use lib qw( lib ../lib ../../lib  ); #Just in case we are testing it in-place
 
 BEGIN {
 	use_ok( 'Algorithm::MasterMind' );
+	use_ok( 'Algorithm::MasterMind::Secret');
 	use_ok( 'Algorithm::MasterMind::Test' );
 	BEGIN { use_ok('Algorithm::MasterMind', qw(check_combination)); };
 
@@ -30,16 +31,31 @@ my @results = ( { blacks => 1,
 		{ blacks => 0,
 		  whites => 1} );
 
+my @secrets;
 while (@combinations ) {
   my $combination = shift @combinations;
+  my $secret = new Algorithm::MasterMind::Secret $combination;
+  push @secrets, $secret;
   my $string = shift @strings;
   my $result = shift @results;
   my $result_obtained = check_combination( $combination, $string );
+  my $other_result_obtained = $secret->check($string);
+  is( $secret->string, $combination, "Atributes");
   is_deeply( $result_obtained, $result, "$string vs $combination");
+  is_deeply( $other_result_obtained, $result, "Secret $string vs $combination");
 }
 
-#Mock play
 my $code = 'BCAD';
+my $sikrit = new Algorithm::MasterMind::Secret $code;
+for my $s (@secrets ) {
+  my $one_result = check_combination( $s->{'_string'}, $code );
+  my $the_other = { blacks => 0,
+		    whites => 0};
+  $sikrit->check_secret( $s, $the_other );
+  is_deeply( $one_result, $the_other, "Checking secrets $s->{'_string'}");
+}
+#Mock play
+
 my @played = qw( ABCA BCAE BBAD BCAD );
 
 my $mm = new Algorithm::MasterMind::Test { options => ''};
@@ -62,3 +78,4 @@ for my $p ( @played ) {
   is( $mm->number_of_rules(), $number_of_rules, "Check self"  );
 }
 
+done_testing();

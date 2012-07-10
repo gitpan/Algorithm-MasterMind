@@ -1,4 +1,92 @@
+2012-07-10  Juan J. Merelo Guervós  <jjmerelo@gmail.com>
+
+	* Makefile.PL: Changing Clone to Clone::Fast, more updated. 
+
+2012-06-05  Juan J. Merelo Guervós  <jjmerelo@gmail.com>
+
+	* lib/Algorithm/MasterMind/EvoD.pm (issue_next): Getting rid of
+	fixed-size consistent sets to use whatever stands unchanged for 5
+	generations. 
+
+2012-06-03  Juan J. Merelo Guervós  <jjmerelo@gmail.com>
+
+	* lib/Algorithm/MasterMind/EvoC.pm (issue_next): This is
+	positively a hack. Changing the consistent set size to 5 times as
+	much in the first iteration, normal afterwards. The main
+	difference between these with limited set size is that the size
+	decreases more slowly. 
+	(issue_next): Multiplier set to 10 and result:
+
+	real	364m17.528s
+user	363m54.710s
+sys	0m4.060s
+
+
+2012-06-01  Juan J. Merelo Guervós  <jjmerelo@gmail.com>
+
+	* lib/Algorithm/MasterMind/Partition_Entropy_1st.pm (issue_first):
+	Changed first move to that one with biggest entropy (different
+	letters). 
+	(issue_first): Going back to the first option: Knuth's. It works
+	better. 
+
+2012-05-31  Juan J. Merelo Guervós  <jjmerelo@gmail.com>
+
+	* app/IEEE-CIG/conf-entropy-4-6.yaml (ID): After adding an Entropy
+	algorithm, checking it with the most basic configuration. 
+
+	Result: 
+real	491m13.892s
+user	490m34.210s
+sys	0m9.330s
+
+2012-05-26  Juan J. Merelo Guervós  <jjmerelo@gmail.com>
+
+	* lib/Algorithm/MasterMind/Secret.pm (check): Optimizing a bit
+	more by eliminating sub parameter copy. 
+
+2012-05-21  Juan J. Merelo Guervós  <jjmerelo@gmail.com>
+
+	* app/run_experiment_instances.pl: Adding monitoring of consistent
+	set to make experiments on its evolution. 
+	Trying again after fixing crossover bug and but in monitoring.
+
+2012-05-16  Juan J. Merelo Guervós  <jjmerelo@gmail.com>
+
+	* lib/Algorithm/MasterMind/Secret.pm (check): This new class will
+	pre-compute part of the stuff needed for secret combinations,
+	speeding up (a bit) that critical part.
+
+2012-05-15  Juan J. Merelo Guervós  <jjmerelo@gmail.com>
+
+	* lib/Algorithm/MasterMind.pm (check_combination): this is the
+	worst routine for the time being, after eliminating Permutation
+	and improving Tournament as bottlenecks (I was going to say
+	sources of slowness :-) 
+
+	* lib/Algorithm/MasterMind/Evo.pm (initialize): Eliminating
+	default value for permutation_rate, which is incredibly slow.
+
+2011-02-18  Juan Julian Merelo Guervos  <jjmerelo@gmail.com>
+
+	* lib/Algorithm/MasterMind/Evolutionary_Base.pm (reset): Changed
+	population-generation function; now all strings in the population
+	are different. 
+
+2010-12-13  Juan J. Merelo Guervós  <jmerelo@localhost.localdomain>
+
+	* lib/Algorithm/MasterMind/Test_Solver.pm (solve_mastermind):
+	Changed so that it checks that the combination played hasn't
+	occurred before. All tests change
+
+	* lib/Algorithm/MasterMind.pm (start_from): new subroutine for
+	continuing from other algorithm. Test works.
+
 2010-12-07  Juan J. Merelo Guervós  <jmerelo@localhost.localdomain>
+
+	* lib/Algorithm/MasterMind/EvoRank.pm (initialize): Added
+	permutation with default rate 0 to EvoRank, don't know why I
+	eliminated it. 
 
 	* lib/Algorithm/MasterMind.pm: Changed minor to 0.3.1, next
 	release with the new methods.

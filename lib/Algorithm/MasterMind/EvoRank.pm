@@ -8,7 +8,7 @@ use lib qw(../../lib ../../../../Algorithm-Evolutionary/lib/
 	   ../../Algorithm-Evolutionary/lib/
 	   ../../../lib);
 
-our $VERSION =   sprintf "%d.%03d", q$Revision: 1.10 $ =~ /(\d+)\.(\d+)/g; 
+our $VERSION =   sprintf "%d.%03d", q$Revision: 1.15 $ =~ /(\d+)\.(\d+)/g; 
 
 use base 'Algorithm::MasterMind::Evolutionary_Base';
 
@@ -25,6 +25,7 @@ use Clone::Fast qw(clone);
 
 # ---------------------------------------------------------------------------
 use constant { MAX_CONSISTENT_SET => 20, # This number 20 was computed in NICSO paper, valid for default 4-6 mastermind
+	       MAX_GENERATIONS_RESET => 50,
 	       MAX_GENERATIONS_EQUAL => 3} ;
 
 sub initialize {
@@ -33,20 +34,27 @@ sub initialize {
   for my $o ( keys %$options ) {
     $self->{"_$o"} = clone($options->{$o});
   }
-
+  croak "No population" if $self->{'_pop_size'} == 0;
   # Variation operators
   my $mutation_rate = $options->{'mutation_rate'} || 1;
   my $xover_rate = $options->{'xover_rate'} || 2;
+  my $permutation_rate = $options->{'permutation_rate'} || 0;
   my $max_number_of_consistent = $options->{'consistent_set_card'} || MAX_CONSISTENT_SET;   
   my $m = new Algorithm::Evolutionary::Op::String_Mutation $mutation_rate ; # Rate = 1
   my $c = Algorithm::Evolutionary::Op::QuadXOver->new( 1, $xover_rate ); 
+  my $operators = [$m,$c];
+  if ( $permutation_rate > 0 ) {
+    my $p =  new Algorithm::Evolutionary::Op::Permutation $permutation_rate; 
+    push @$operators, $p;
+  }
+  if (! $self->{'_ga'} ) { # Not given as an option
+    $self->{'_ga'} = new Algorithm::Evolutionary::Op::Canonical_GA_NN( $options->{'replacement_rate'},
+								       $operators );    
+  }
 
-  my $ga = new Algorithm::Evolutionary::Op::Canonical_GA_NN( $options->{'replacement_rate'},
-							     [ $m, $c] );
   if (!$self->{'_distance'}) {
     $self->{'_distance'} = 'distance_taxicab';
   }
-  $self->{'_ga'} = $ga;
   $self->{'_max_consistent'} = $max_number_of_consistent;
 }
 
@@ -78,6 +86,7 @@ sub issue_next {
 
   #Recalculate distances, new game
   my (%consistent );
+  my $partitions;
   my $distance = $self->{'_distance'};
   for my $p ( @$pop ) {
       ($p->{'_distance'}, $p->{'_matches'}) = @{$self->$distance( $p->{'_str'} )};
@@ -87,7 +96,7 @@ sub issue_next {
 
   my $number_of_consistent = keys %consistent;
   if ( $number_of_consistent > 1 ) {
-    my $partitions = partitions( keys %consistent );      
+    $partitions = partitions( keys %consistent );      
     for my $c ( keys %$partitions ) {
       $consistent{$c}->{'_partitions'} = scalar (keys  %{$partitions->{$c}});
     }
@@ -118,7 +127,7 @@ sub issue_next {
     }
     
     #Check termination again, and reset
-    if ($generations_equal == 50 ) {
+    if ($generations_equal == MAX_GENERATIONS_RESET ) {
 	$ga->reset( $pop );
 	for my $p ( @$pop ) {
 	($p->{'_distance'}, $p->{'_matches'}) = @{$self->$distance( $p->{'_str'} )};
@@ -136,7 +145,7 @@ sub issue_next {
       $number_of_consistent = $this_number_of_consistent;
       # Compute number of partitions
       if ( $number_of_consistent > 1 ) {
-	my $partitions = partitions( keys %consistent );      
+	$partitions = partitions( keys %consistent );      
 	for my $c ( keys %$partitions ) {
 	  $consistent{$c}->{'_partitions'} = scalar (keys  %{$partitions->{$c}});
 	}
@@ -152,7 +161,7 @@ sub issue_next {
   if ( $this_number_of_consistent > 1 ) {
     #    print "Consistent ", scalar keys %consistent, "\n";
     #Use whatever we've got to compute number of partitions
-    my $partitions = partitions( keys %consistent );
+#    my $partitions = partitions( keys %consistent );
     
     my $max_partitions = 0;
     my %max_c;
@@ -181,7 +190,7 @@ __END__
 
 =head1 NAME
 
-Algorithm::MasterMind::EvoRank - Evolutionary algorith with the
+Algorithm::MasterMind::EvoRank - Evolutionary algorithm with the
 partition method and ranked fitness, prepared for GECCO 2010 
 
 
@@ -194,7 +203,23 @@ partition method and ranked fitness, prepared for GECCO 2010
 
 The partition method was introduced in a 2010 paper, and then changed
 by Runarsson and Merelo to incorporate it in the genetic search. It
-was prepared for a conference paper.
+was prepared for a conference paper, this one:
+
+  @INPROCEEDINGS{mm:cig,
+   author={Merelo, J.J. and Mora, A.M. and Runarsson, T.P. and Cotta, C.},
+   booktitle={Computational Intelligence and Games (CIG), 2010 IEEE Symposium on}, 
+   title={Assessing efficiency of different evolutionary strategies playing MasterMind},
+   year=2010,
+   month={August},
+   pages={38--45},
+   keywords={MasterMind player;constrained optimization problem;evolutionary algorithm;evolutionary strategy;fitness function;computer games;evolutionary computation;},
+   doi={10.1109/ITW.2010.5593373}
+  }
+
+This method is the evolutionary equivalent of
+L<Algorithm::MasterMind::Partitition::Most>, using the number of
+non-null partitions to score consistent combinations, while using
+distance-to-consistency to score non-consistent. 
 
 =head1 INTERFACE 
 
@@ -204,15 +229,15 @@ Initializes the genetic part of the algorithm
 
 =head2 issue_next()
 
-Issues the next combination, using this method.
+Issues the next combination, using this method. Every generation runs
+an evolutionary algorithm to compute the next string.
 
 =head2 compute_fitness()
 
 Processes "raw" fitness to assign fitness once consistency and/or
-distance to it is known. It's lineally scaled to make the lowes
-combination = 1
-
-
+distance to it is known. It's lineally scaled to make the lowest
+combination have a fitness equal to 1, which is needed just in case
+the selection method uses roulette wheel (which it does).
 
 =head1 AUTHOR
 
