@@ -23,4 +23,4 @@ requires:
   Clone::Fast: 0
   Test::More: 0
   version: 0.77
-version: v0.4.1
+version: v0.4.2
